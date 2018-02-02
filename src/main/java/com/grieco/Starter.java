@@ -12,7 +12,7 @@ public class Starter
     @RequestMapping("/")
     public String home()
     {
-        return "Hello Spring--boot!";
+        return "Hello Springboot!";
     }
 
     public static void main(String[] args) throws Exception
