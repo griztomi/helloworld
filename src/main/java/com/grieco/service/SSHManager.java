@@ -1,32 +1,38 @@
 package com.grieco.service;
 
 import com.jcraft.jsch.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class SSHManager
 {
+    private static final String POLL_CMD = "(cd %s && find . -type f | cut -c 3-)" ;
+
     private String userName;
     private String connectionIP;
     private int connectionPort;
     private String password;
     private Session session;
     private int connectionTimeOut;
+    private String remoteBaseDir;
+    private String localBaseDir;
 
     public SSHManager()
     {
-        this.password = System.getProperty("password");
+        this.password = new String(Base64.getDecoder().decode(System.getProperty("password")));
         String[] connection = System.getProperty("connection").split("[@:]");
         this.userName = connection[0];
         this.connectionIP = connection[1];
         this.connectionPort = Integer.parseInt(connection[2]);
         this.connectionTimeOut = 60000;
+        this.remoteBaseDir = System.getProperty("remoteBaseDir");
+        this.localBaseDir = System.getProperty("localBaseDir");
     }
 
     public String connect()
@@ -48,13 +54,18 @@ public class SSHManager
         return errorMessage;
     }
 
-    public String sendCommand(String[] commands)
+    public String poll()
+    {
+        return sendCommand(String.format(POLL_CMD, remoteBaseDir)).trim();
+    }
+
+    private String sendCommand(String command)
     {
         Channel channel = null;
         try
         {
             channel = session.openChannel("exec");
-            ((ChannelExec)channel).setCommand(String.join("", commands));
+            ((ChannelExec)channel).setCommand(command);
             try (InputStream commandOutput = channel.getInputStream();
                  ByteArrayOutputStream result = new ByteArrayOutputStream())
             {
@@ -70,15 +81,39 @@ public class SSHManager
                 return result.toString(StandardCharsets.UTF_8.name());
             }
         }
-        catch(IOException ioX)
+        catch(IOException | JSchException e)
         {
             return null;
-        }
-        catch(JSchException jschX)
+        } finally
         {
-            return null;
+            if (channel != null)
+            {
+                channel.disconnect();
+            }
         }
-        finally
+    }
+
+    public void saveFiles(String[] remoteFiles)
+    {
+        Channel channel = null;
+        try
+        {
+            channel = session.openChannel("sftp");
+            ChannelSftp channelSftp = (ChannelSftp) channel;
+            for (String file : remoteFiles)
+            {
+                try
+                {
+                    channelSftp.get(remoteBaseDir + file, localBaseDir + file);
+                } catch (SftpException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSchException e)
+        {
+            e.printStackTrace();
+        } finally
         {
             if (channel != null)
             {

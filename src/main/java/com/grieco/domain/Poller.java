@@ -5,6 +5,9 @@ import com.grieco.domain.model.Attributes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.Optional;
+
 @Component
 public class Poller
 {
@@ -19,8 +22,10 @@ public class Poller
             return error;
         }
 
-        String result = sshManager.sendCommand(attributes.getCommands());
+        String pollResult = sshManager.poll();
+        sshManager.saveFiles(pollResult.split("\n"));
+
         sshManager.close();
-        return result;
+        return pollResult;
     }
 }

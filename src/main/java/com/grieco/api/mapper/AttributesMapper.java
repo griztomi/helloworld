@@ -13,7 +13,6 @@ public class AttributesMapper
     {
         return Optional.of(parameters)
                 .map(Parameters::getCommand)
-                .map(command -> command.split(";"))
                 .map(Attributes::new)
                 .orElse(null);
     }

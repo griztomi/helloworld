@@ -11,5 +11,5 @@ import lombok.ToString;
 @AllArgsConstructor
 public class Attributes
 {
-    private String[] commands;
+    private String command;
 }
