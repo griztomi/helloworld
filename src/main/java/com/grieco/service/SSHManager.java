@@ -139,20 +139,6 @@ public class SSHManager
     private void createSubDirs(ChannelSftp channelSftp, String file)
     {
         String[] subDirs = file.split("/");
-        try
-        {
-            String[] localBaseSubDirs = localBaseDir.split("/");
-            channelSftp.cd("/");
-            LOGGER.info("cd /");
-            for(int i = 1; i < subDirs.length-1; i++)
-            {
-                channelSftp.cd(localBaseSubDirs[i]);
-                LOGGER.info("cd " + localBaseSubDirs[i]);
-            }
-        } catch (SftpException e)
-        {
-            LOGGER.error("Local base directory does not exists: " + file, e);
-        }
         for(int i = 0; i < subDirs.length-1; i++)
         {
             try
