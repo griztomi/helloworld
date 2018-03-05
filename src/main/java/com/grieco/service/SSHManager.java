@@ -141,7 +141,11 @@ public class SSHManager
         String[] subDirs = file.split("/");
         try
         {
-            channelSftp.cd(localBaseDir);
+            channelSftp.cd("/");
+            for (String path : localBaseDir.split("/"))
+            {
+                channelSftp.cd(localBaseDir);
+            }
         } catch (SftpException e)
         {
             LOGGER.error("Local base directory does not exists: " + file, e);
