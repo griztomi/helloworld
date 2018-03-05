@@ -23,12 +23,12 @@ public class Scheduler
         this.outputMapper = outputMapper;
     }
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 20000)
     public void scheduler()
     {
         LOGGER.info("Sync started");
         String[] poll = poller.sync();
         String output = outputMapper.mapSyncedFiles(poll);
-        LOGGER.info("Sync result:\n" + output);
+        LOGGER.info("Sync result:" + output);
     }
 }
