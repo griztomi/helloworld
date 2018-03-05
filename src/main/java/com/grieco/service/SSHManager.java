@@ -1,6 +1,8 @@
 package com.grieco.service;
 
 import com.jcraft.jsch.*;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -54,14 +56,18 @@ public class SSHManager
         }
     }
 
+    public String[] pollLocal()
+    {
+        return FileUtils.listFiles(new File(localBaseDir), TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE)
+            .stream()
+            .map(File::getPath)
+            .map(path -> path.substring(path.indexOf("/")+1))
+            .toArray(String[]::new);
+    }
+
     public String[] pollRemote()
     {
         return sendCommand(String.format(POLL_CMD, remoteBaseDir)).trim().split("\n");
-    }
-
-    public String[] pollLocal()
-    {
-        return sendCommand(String.format(POLL_CMD, localBaseDir)).trim().split("\n");
     }
 
     private String sendCommand(String command)
@@ -109,12 +115,14 @@ public class SSHManager
             channel = session.openChannel("sftp");
             ChannelSftp channelSftp = (ChannelSftp) channel;
             channel.connect();
-            for (String file : remoteFiles)
+            for (String filePath : remoteFiles)
             {
                 try
                 {
-                    createSubDirs(channelSftp, file);
-                    channelSftp.get(remoteBaseDir + file, localBaseDir + file);
+                    String path = filePath.substring(0, file.lastIndexOf("/"));
+                    createSubDirs(channelSftp, path);
+                    String fileName = filePath.substring(file.lastIndexOf("/")+1);
+                    channelSftp.get(remoteBaseDir + filePath, fileName);
                 } catch (SftpException e)
                 {
                     LOGGER.error("Could not save file", e);
@@ -136,28 +144,17 @@ public class SSHManager
         return isSuccess;
     }
 
-    private void createSubDirs(ChannelSftp channelSftp, String file)
+    private void createSubDirs(ChannelSftp channelSftp, String path) throws SftpException
     {
-        String[] subDirs = file.split("/");
-        for(int i = 0; i < subDirs.length-1; i++)
+        String absolutePath = localBaseDir + path;
+        try
         {
-            try
-            {
-                channelSftp.mkdir(subDirs[i]);
-                LOGGER.info("mkdir " + subDirs[i]);
-            } catch (SftpException e)
-            {
-                // Directory already exists
-            }
-            try
-            {
-                channelSftp.cd(subDirs[i]);
-                LOGGER.info("cd " + subDirs[i]);
-            } catch (SftpException e)
-            {
-                LOGGER.error("Could not create local directory for: " + file, e);
-            }
+            new File(absolutePath).mkdirs();
+        } catch (Exception e)
+        {
+            LOGGER.error("Could not create local directory: " + absolutePath, e);
         }
+        channelSftp.cd(absolutePath);
     }
 
     public void close()
