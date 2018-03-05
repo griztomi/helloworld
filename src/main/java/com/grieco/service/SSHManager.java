@@ -144,7 +144,7 @@ public class SSHManager
             channelSftp.cd("/");
             for (String path : localBaseDir.split("/"))
             {
-                channelSftp.cd(localBaseDir);
+                channelSftp.cd(path);
             }
         } catch (SftpException e)
         {
