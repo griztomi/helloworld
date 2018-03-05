@@ -143,9 +143,11 @@ public class SSHManager
         {
             String[] localBaseSubDirs = localBaseDir.split("/");
             channelSftp.cd("/");
+            LOGGER.info("cd /");
             for(int i = 1; i < subDirs.length-1; i++)
             {
                 channelSftp.cd(localBaseSubDirs[i]);
+                LOGGER.info("cd " + localBaseSubDirs[i]);
             }
         } catch (SftpException e)
         {
@@ -156,6 +158,7 @@ public class SSHManager
             try
             {
                 channelSftp.mkdir(subDirs[i]);
+                LOGGER.info("mkdir " + subDirs[i]);
             } catch (SftpException e)
             {
                 // Directory already exists
@@ -163,6 +166,7 @@ public class SSHManager
             try
             {
                 channelSftp.cd(subDirs[i]);
+                LOGGER.info("cd " + subDirs[i]);
             } catch (SftpException e)
             {
                 LOGGER.error("Could not create local directory for: " + file, e);
