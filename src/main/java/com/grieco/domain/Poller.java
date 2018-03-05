@@ -25,11 +25,13 @@ public class Poller
 
         String[] filesToSync = getFilesToSync(sshManager.pollRemote(), sshManager.pollLocal());
 
-        boolean isSuccess = sshManager.saveFiles(filesToSync);
+        if (filesToSync.length == 0)
+        {
+            sshManager.close();
+            return new String[0];
+        }
 
-        sshManager.close();
-
-        if (isSuccess)
+        if (sshManager.saveFiles(filesToSync))
         {
             return filesToSync;
         }
