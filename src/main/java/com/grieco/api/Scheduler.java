@@ -23,7 +23,7 @@ public class Scheduler
         this.outputMapper = outputMapper;
     }
 
-    @Scheduled(fixedDelay = 20000)
+    @Scheduled(fixedDelay = 10000)
     public void scheduler()
     {
         LOGGER.info("Sync started");
