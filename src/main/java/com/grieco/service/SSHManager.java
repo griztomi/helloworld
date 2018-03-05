@@ -1,17 +1,21 @@
 package com.grieco.service;
 
 import com.jcraft.jsch.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
-import java.util.Map;
 
 @Component
 public class SSHManager
 {
+    private static final Logger LOGGER = LogManager.getLogger(SSHManager.class);
     private static final String POLL_CMD = "(cd %s && find . -type f | cut -c 3-)" ;
 
     private String userName;
@@ -35,10 +39,8 @@ public class SSHManager
         this.localBaseDir = System.getProperty("localBaseDir");
     }
 
-    public String connect()
+    public void connect()
     {
-        String errorMessage = null;
-
         try
         {
             session = new JSch().getSession(userName, connectionIP, connectionPort);
@@ -46,17 +48,20 @@ public class SSHManager
             session.setConfig("StrictHostKeyChecking", "no");
             session.connect(connectionTimeOut);
         }
-        catch(JSchException jschX)
+        catch(JSchException e)
         {
-            errorMessage = jschX.getMessage();
+            LOGGER.error("Could not connect to remote", e);
         }
-
-        return errorMessage;
     }
 
-    public String poll()
+    public String[] pollRemote()
     {
-        return sendCommand(String.format(POLL_CMD, remoteBaseDir)).trim();
+        return sendCommand(String.format(POLL_CMD, remoteBaseDir)).trim().split("\n");
+    }
+
+    public String[] pollLocal()
+    {
+        return sendCommand(String.format(POLL_CMD, localBaseDir)).trim().split("\n");
     }
 
     private String sendCommand(String command)
@@ -66,11 +71,10 @@ public class SSHManager
         {
             channel = session.openChannel("exec");
             ((ChannelExec)channel).setCommand(command);
+            channel.connect();
             try (InputStream commandOutput = channel.getInputStream();
                  ByteArrayOutputStream result = new ByteArrayOutputStream())
             {
-                channel.connect();
-
                 byte[] buffer = new byte[1024];
                 int length;
                 while ((length = commandOutput.read(buffer)) != -1)
@@ -79,11 +83,13 @@ public class SSHManager
                 }
 
                 return result.toString(StandardCharsets.UTF_8.name());
+            } catch (IOException e)
+            {
+                LOGGER.error("Read/Write error during poll", e);
             }
-        }
-        catch(IOException | JSchException e)
+        } catch (JSchException e)
         {
-            return null;
+            LOGGER.error("Connection error during poll", e);
         } finally
         {
             if (channel != null)
@@ -91,33 +97,70 @@ public class SSHManager
                 channel.disconnect();
             }
         }
+        return null;
     }
 
-    public void saveFiles(String[] remoteFiles)
+    public boolean saveFiles(String[] remoteFiles)
     {
+        boolean isSuccess = true;
         Channel channel = null;
         try
         {
             channel = session.openChannel("sftp");
             ChannelSftp channelSftp = (ChannelSftp) channel;
+            channel.connect();
             for (String file : remoteFiles)
             {
                 try
                 {
+                    createSubDirs(channelSftp, file);
                     channelSftp.get(remoteBaseDir + file, localBaseDir + file);
                 } catch (SftpException e)
                 {
-                    e.printStackTrace();
+                    LOGGER.error("Could not save file", e);
+                    isSuccess = false;
                 }
             }
         } catch (JSchException e)
         {
-            e.printStackTrace();
+            LOGGER.error("Connection error during save", e);
+            isSuccess = false;
         } finally
         {
             if (channel != null)
             {
                 channel.disconnect();
+            }
+        }
+
+        return isSuccess;
+    }
+
+    private void createSubDirs(ChannelSftp channelSftp, String file)
+    {
+        String[] subDirs = file.split("/");
+        try
+        {
+            channelSftp.cd(localBaseDir);
+        } catch (SftpException e)
+        {
+            LOGGER.error("Local base directory does not exists: " + file, e);
+        }
+        for(int i = 0; i < subDirs.length-1; i++)
+        {
+            try
+            {
+                channelSftp.mkdir(subDirs[i]);
+            } catch (SftpException e)
+            {
+                // Directory already exists
+            }
+            try
+            {
+                channelSftp.cd(subDirs[i]);
+            } catch (SftpException e)
+            {
+                LOGGER.error("Could not create local directory for: " + file, e);
             }
         }
     }

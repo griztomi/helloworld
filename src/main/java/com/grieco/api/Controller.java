@@ -15,20 +15,25 @@ import java.util.Optional;
 @RestController
 public class Controller
 {
-    @Autowired
     private AttributesMapper attributesMapper;
-    @Autowired
     private Poller poller;
-    @Autowired
     private OutputMapper outputMapper;
 
-    @RequestMapping(value = "/ssh", method = {RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
-    public String ssh(Parameters parameters)
+    @Autowired
+    public Controller(AttributesMapper attributesMapper, Poller poller, OutputMapper outputMapper)
+    {
+        this.attributesMapper = attributesMapper;
+        this.poller = poller;
+        this.outputMapper = outputMapper;
+    }
+
+    @RequestMapping(value = "/poll", method = {RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
+    public String poll(Parameters parameters)
     {
         return Optional.of(parameters)
                 .map(attributesMapper::map)
                 .map(poller::poll)
-                .map(outputMapper::map)
-                .orElse("Error");
+                .map(outputMapper::mapPollResult)
+                .orElse("Unexpected Error. See logs!");
     }
 }

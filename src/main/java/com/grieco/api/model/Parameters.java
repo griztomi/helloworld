@@ -11,5 +11,5 @@ import lombok.ToString;
 @Setter
 public class Parameters
 {
-    private String command;
+    private String target;
 }
