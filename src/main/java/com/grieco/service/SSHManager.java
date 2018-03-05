@@ -141,10 +141,11 @@ public class SSHManager
         String[] subDirs = file.split("/");
         try
         {
+            String[] localBaseSubDirs = localBaseDir.split("/");
             channelSftp.cd("/");
-            for (String path : localBaseDir.split("/"))
+            for(int i = 1; i < subDirs.length-1; i++)
             {
-                channelSftp.cd(path);
+                channelSftp.cd(localBaseSubDirs[i]);
             }
         } catch (SftpException e)
         {
